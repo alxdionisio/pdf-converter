@@ -4,8 +4,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="PDF Converter API")
@@ -17,6 +17,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 Mo
+
 SUPPORTED_EXTENSIONS = {
     ".docx", ".doc", ".odt", ".rtf",
     ".pptx", ".ppt", ".odp",
@@ -27,6 +29,18 @@ SUPPORTED_EXTENSIONS = {
 
 OUTPUT_DIR = Path(tempfile.gettempdir()) / "pdf_outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+
+
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    if request.method == "POST" and request.url.path == "/convert":
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_UPLOAD_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": "Fichier trop volumineux (max 100 Mo)"}
+            )
+    return await call_next(request)
 
 
 @app.get("/health")
