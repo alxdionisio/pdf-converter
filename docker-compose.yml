@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    # No ports exposed externally — only accessible via frontend proxy
+    networks:
+      - internal
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"   # Change 3000 to any port you want
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

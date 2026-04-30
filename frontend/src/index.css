@@ -1,0 +1,72 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #181818;
+  --border: #2a2a2a;
+  --border-hover: #444;
+  --text: #e8e8e8;
+  --text-muted: #666;
+  --text-dim: #999;
+  --accent: #e8e8e8;
+  --accent-dim: rgba(232, 232, 232, 0.08);
+  --success: #4ade80;
+  --error: #f87171;
+  --radius: 6px;
+  --font-mono: 'DM Mono', monospace;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+:root[data-theme="light"] {
+  --bg: #f7f7f7;
+  --surface: #ffffff;
+  --border: #d9d9d9;
+  --border-hover: #b9b9b9;
+  --text: #1b1b1b;
+  --text-muted: #737373;
+  --text-dim: #4f4f4f;
+  --accent: #1b1b1b;
+  --accent-dim: rgba(27, 27, 27, 0.08);
+  --success: #16a34a;
+  --error: #dc2626;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+}
+
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+a {
+  color: inherit;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
