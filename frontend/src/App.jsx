@@ -1,3 +1,5 @@
+// frontend/src/App.jsx version 2.0.0
+
 import { useState, useRef, useCallback, useEffect } from 'react'
 
 const ACCEPTED = [
