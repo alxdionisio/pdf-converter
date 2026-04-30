@@ -25,6 +25,9 @@ Aucun fichier ne transite par un service tiers.
 ## Lancement (Docker)
 
 ```bash
+# Préparer les secrets backend (fichier non versionné)
+cp backend/.env.example backend/.env
+
 # Build et démarrage
 docker-compose up --build
 
@@ -41,6 +44,7 @@ Pour changer le port, modifier `docker-compose.yml` → `"3000:80"`.
 ```bash
 cd backend
 pip install -r requirements.txt
+# Créer backend/.env depuis backend/.env.example
 # Installer LibreOffice : https://www.libreoffice.org/download/
 uvicorn main:app --reload --port 8000
 ```
@@ -77,8 +81,17 @@ converter.mondomaine.fr {
 | Variable | Description | Défaut |
 |----------|-------------|--------|
 | Port exposé | Modifier dans `docker-compose.yml` | `3000` |
+| Auth backend | Modifier `backend/.env` (non versionné) | requis |
 | Taille max upload | Modifier dans `nginx.conf` (`client_max_body_size`) | `100M` |
 | Timeout conversion | Modifier dans `nginx.conf` (`proxy_read_timeout`) | `120s` |
+
+### Authentification
+
+- L'accès à la conversion nécessite une connexion (`/auth/login`).
+- Le frontend ne contient aucun identifiant en dur.
+- Les secrets sont lus depuis `backend/.env` (ignoré par git).
+- Le mot de passe est stocké en SHA-256 (`AUTH_PASSWORD_SHA256`) et jamais en clair dans le code.
+- Anti brute-force activé sur `/auth/login` via Nginx (5 requêtes/min/IP, burst 5, retour HTTP 429).
 
 ---
 

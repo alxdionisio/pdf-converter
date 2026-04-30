@@ -28,6 +28,11 @@ export default function App() {
   const [pdfFilename, setPdfFilename] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [authToken, setAuthToken] = useState(() => window.sessionStorage.getItem('authToken') || '')
+  const [loginId, setLoginId] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -80,8 +85,19 @@ export default function App() {
 
     try {
       const api = import.meta.env.VITE_API_URL || ''
-      const res = await fetch(`${api}/convert`, { method: 'POST', body: formData })
+      const res = await fetch(`${api}/convert`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      })
       if (!res.ok) {
+        if (res.status === 401) {
+          window.sessionStorage.removeItem('authToken')
+          setAuthToken('')
+          throw new Error('Session expirée, veuillez vous reconnecter.')
+        }
         const err = await res.json().catch(() => ({ detail: 'Erreur inconnue' }))
         throw new Error(err.detail || `HTTP ${res.status}`)
       }
@@ -106,6 +122,113 @@ export default function App() {
     a.download = pdfFilename
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const login = async (e) => {
+    e.preventDefault()
+    setLoginLoading(true)
+    setLoginError('')
+    try {
+      const api = import.meta.env.VITE_API_URL || ''
+      const res = await fetch(`${api}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: loginId.trim(),
+          password: loginPassword,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Erreur de connexion' }))
+        throw new Error(err.detail || 'Erreur de connexion')
+      }
+      const body = await res.json()
+      window.sessionStorage.setItem('authToken', body.token)
+      setAuthToken(body.token)
+      setLoginPassword('')
+    } catch (err) {
+      setLoginError(err.message)
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
+  const logout = () => {
+    window.sessionStorage.removeItem('authToken')
+    setAuthToken('')
+    setLoginPassword('')
+    setLoginError('')
+    reset()
+  }
+
+  if (!authToken) {
+    return (
+      <div style={styles.root}>
+        <header style={styles.header}>
+          <div style={styles.headerLeft}>
+            <span style={styles.logo}>doc<span style={styles.logoAccent}>→</span>pdf</span>
+            <span style={styles.tagline}>Conversion locale & confidentielle</span>
+          </div>
+          <button
+            type="button"
+            style={styles.themeSwitch}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            role="switch"
+            aria-checked={theme === 'dark'}
+            aria-label={`Passer en mode ${theme === 'dark' ? 'clair' : 'sombre'}`}
+            title={`Mode ${theme === 'dark' ? 'clair' : 'sombre'}`}
+          >
+            <span
+              style={{
+                ...styles.themeThumb,
+                ...(theme === 'light' ? styles.themeThumbLight : {}),
+              }}
+            />
+            <span
+              style={{
+                ...styles.themeLabel,
+                ...(theme === 'light' ? styles.themeLabelLight : {}),
+              }}
+            >
+              {theme === 'dark' ? 'Dark' : 'Light'}
+            </span>
+          </button>
+        </header>
+
+        <main style={styles.main}>
+          <form style={styles.loginCard} onSubmit={login}>
+            <h1 style={styles.loginTitle}>Connexion</h1>
+            <p style={styles.loginSubtitle}>Accès réservé aux utilisateurs autorisés.</p>
+            <label style={styles.loginLabel}>
+              Identifiant
+              <input
+                style={styles.loginInput}
+                type="email"
+                autoComplete="username"
+                value={loginId}
+                onChange={(e) => setLoginId(e.target.value)}
+                required
+              />
+            </label>
+            <label style={styles.loginLabel}>
+              Mot de passe
+              <input
+                style={styles.loginInput}
+                type="password"
+                autoComplete="current-password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+              />
+            </label>
+            <button type="submit" style={styles.convertBtn} disabled={loginLoading}>
+              {loginLoading ? 'Connexion…' : 'Se connecter'}
+            </button>
+            {loginError && <div style={styles.errorBox}><span style={styles.errorIcon}>⚠</span><span>{loginError}</span></div>}
+          </form>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -139,6 +262,7 @@ export default function App() {
             {theme === 'dark' ? 'Dark' : 'Light'}
           </span>
         </button>
+        <button type="button" style={styles.logoutBtn} onClick={logout}>Déconnexion</button>
       </header>
 
       <main style={styles.main}>
@@ -348,6 +472,18 @@ const styles = {
     marginRight: 'auto',
     marginLeft: 10,
   },
+  logoutBtn: {
+    height: 30,
+    padding: '0 12px',
+    borderRadius: 999,
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text-dim)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 10,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
   main: {
     flex: 1,
     display: 'flex',
@@ -361,6 +497,50 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
+  },
+  loginCard: {
+    width: '100%',
+    maxWidth: 420,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    padding: '24px',
+    borderRadius: var_radius(),
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+  },
+  loginTitle: {
+    fontSize: 20,
+    fontWeight: 500,
+    color: 'var(--text)',
+    marginBottom: 2,
+  },
+  loginSubtitle: {
+    fontSize: 13,
+    color: 'var(--text-muted)',
+    marginBottom: 8,
+  },
+  loginLabel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    fontSize: 12,
+    color: 'var(--text-dim)',
+    fontFamily: 'var(--font-mono)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  loginInput: {
+    height: 42,
+    borderRadius: var_radius(),
+    border: '1px solid var(--border)',
+    background: 'var(--bg)',
+    color: 'var(--text)',
+    padding: '0 12px',
+    fontSize: 14,
+    fontFamily: 'var(--font-sans)',
+    textTransform: 'none',
+    letterSpacing: 'normal',
   },
   dropzone: {
     border: '1px dashed var(--border-hover)',

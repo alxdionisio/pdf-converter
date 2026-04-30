@@ -2,11 +2,18 @@ import os
 import uuid
 import subprocess
 import tempfile
+import hashlib
+import hmac
+import base64
+import json
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from starlette.background import BackgroundTask
 
 app = FastAPI(title="PDF Converter API")
 
@@ -30,6 +37,78 @@ SUPPORTED_EXTENSIONS = {
 OUTPUT_DIR = Path(tempfile.gettempdir()) / "pdf_outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+AUTH_USERNAME = os.getenv("AUTH_USERNAME")
+AUTH_PASSWORD_SHA256 = os.getenv("AUTH_PASSWORD_SHA256")
+AUTH_TOKEN_SECRET = os.getenv("AUTH_TOKEN_SECRET")
+TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "28800"))
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def _sign_token(payload: str) -> str:
+    signature = hmac.new(
+        AUTH_TOKEN_SECRET.encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("=")
+
+
+def _create_token(username: str) -> str:
+    payload = json.dumps(
+        {"sub": username, "exp": int(time.time()) + TOKEN_TTL_SECONDS},
+        separators=(",", ":"),
+    )
+    payload_b64 = base64.urlsafe_b64encode(payload.encode("utf-8")).decode("utf-8").rstrip("=")
+    signature_b64 = _sign_token(payload_b64)
+    return f"{payload_b64}.{signature_b64}"
+
+
+def _decode_token(token: str) -> dict:
+    if not AUTH_TOKEN_SECRET:
+        raise HTTPException(status_code=500, detail="Configuration auth incomplète")
+    try:
+        payload_b64, signature = token.split(".", 1)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail="Token invalide") from exc
+
+    expected = _sign_token(payload_b64)
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(status_code=401, detail="Token invalide")
+
+    padded_payload = payload_b64 + "=" * (-len(payload_b64) % 4)
+    payload_raw = base64.urlsafe_b64decode(padded_payload.encode("utf-8")).decode("utf-8")
+    payload = json.loads(payload_raw)
+    if payload.get("exp", 0) < int(time.time()):
+        raise HTTPException(status_code=401, detail="Session expirée")
+    return payload
+
+
+def _require_auth(request: Request) -> None:
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentification requise")
+    token = auth_header.split(" ", 1)[1].strip()
+    payload = _decode_token(token)
+    if payload.get("sub") != AUTH_USERNAME:
+        raise HTTPException(status_code=401, detail="Token invalide")
+
+
+@app.post("/auth/login")
+def login(body: LoginRequest):
+    if not AUTH_USERNAME or not AUTH_PASSWORD_SHA256 or not AUTH_TOKEN_SECRET:
+        raise HTTPException(status_code=500, detail="Configuration auth incomplète")
+
+    candidate_hash = hashlib.sha256(body.password.encode("utf-8")).hexdigest()
+    if body.username != AUTH_USERNAME or not hmac.compare_digest(candidate_hash, AUTH_PASSWORD_SHA256):
+        raise HTTPException(status_code=401, detail="Identifiants invalides")
+
+    token = _create_token(body.username)
+    return {"token": token}
+
 
 @app.middleware("http")
 async def limit_upload_size(request: Request, call_next):
@@ -49,7 +128,8 @@ def health():
 
 
 @app.post("/convert")
-async def convert_to_pdf(file: UploadFile = File(...)):
+async def convert_to_pdf(request: Request, file: UploadFile = File(...)):
+    _require_auth(request)
     original_name = Path(file.filename)
     ext = original_name.suffix.lower()
 
@@ -83,6 +163,7 @@ async def convert_to_pdf(file: UploadFile = File(...)):
             media_type="application/pdf",
             filename=f"{stem}.pdf",
             headers={"X-Job-Id": job_id},
+            background=BackgroundTask(output_path.unlink, missing_ok=True),
         )
 
     except HTTPException:

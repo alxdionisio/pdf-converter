@@ -4,6 +4,8 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     # No ports exposed externally — only accessible via frontend proxy
     networks:
       - internal
