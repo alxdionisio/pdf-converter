@@ -238,31 +238,41 @@ export default function App() {
           <span style={styles.logo}>doc<span style={styles.logoAccent}>→</span>pdf</span>
           <span style={styles.tagline}>Conversion locale & confidentielle</span>
         </div>
-        <button
-          type="button"
-          style={styles.themeSwitch}
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          role="switch"
-          aria-checked={theme === 'dark'}
-          aria-label={`Passer en mode ${theme === 'dark' ? 'clair' : 'sombre'}`}
-          title={`Mode ${theme === 'dark' ? 'clair' : 'sombre'}`}
-        >
-          <span
-            style={{
-              ...styles.themeThumb,
-              ...(theme === 'light' ? styles.themeThumbLight : {}),
-            }}
-          />
-          <span
-            style={{
-              ...styles.themeLabel,
-              ...(theme === 'light' ? styles.themeLabelLight : {}),
-            }}
+        <div style={styles.headerActions}>
+          <button
+            type="button"
+            style={styles.themeSwitch}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            role="switch"
+            aria-checked={theme === 'dark'}
+            aria-label={`Passer en mode ${theme === 'dark' ? 'clair' : 'sombre'}`}
+            title={`Mode ${theme === 'dark' ? 'clair' : 'sombre'}`}
           >
-            {theme === 'dark' ? 'Dark' : 'Light'}
-          </span>
-        </button>
-        <button type="button" style={styles.logoutBtn} onClick={logout}>Déconnexion</button>
+            <span
+              style={{
+                ...styles.themeThumb,
+                ...(theme === 'light' ? styles.themeThumbLight : {}),
+              }}
+            />
+            <span
+              style={{
+                ...styles.themeLabel,
+                ...(theme === 'light' ? styles.themeLabelLight : {}),
+              }}
+            >
+              {theme === 'dark' ? 'Dark' : 'Light'}
+            </span>
+          </button>
+          <button
+            type="button"
+            style={styles.logoutIconBtn}
+            onClick={logout}
+            aria-label="Se déconnecter"
+            title="Se déconnecter"
+          >
+            <LogoutIcon />
+          </button>
+        </div>
       </header>
 
       <main style={styles.main}>
@@ -396,6 +406,16 @@ function Spinner() {
   )
 }
 
+function LogoutIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  )
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = {
@@ -472,17 +492,24 @@ const styles = {
     marginRight: 'auto',
     marginLeft: 10,
   },
-  logoutBtn: {
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+  },
+  logoutIconBtn: {
+    width: 30,
     height: 30,
-    padding: '0 12px',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 999,
     border: '1px solid var(--border)',
-    background: 'transparent',
-    color: 'var(--text-dim)',
-    fontFamily: 'var(--font-mono)',
-    fontSize: 10,
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase',
+    background: 'var(--surface)',
+    color: 'var(--text-muted)',
+    transition: 'border-color 0.15s, color 0.15s, background 0.15s',
   },
   main: {
     flex: 1,
