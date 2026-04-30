@@ -77,7 +77,8 @@ export default function App() {
     formData.append('file', file)
 
     try {
-      const res = await fetch('/convert', { method: 'POST', body: formData })
+      const api = import.meta.env.VITE_API_URL || ''
+      const res = await fetch(`${api}/convert`, { method: 'POST', body: formData })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Erreur inconnue' }))
         throw new Error(err.detail || `HTTP ${res.status}`)
