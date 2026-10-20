@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    # No ports exposed and no outbound network — only reachable via the frontend proxy
+    networks:
+      - internal
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 512
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      # Bound to localhost by default: put a TLS reverse proxy in front.
+      # Set BIND_ADDRESS=0.0.0.0 to expose it directly (trusted networks only).
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3002}:80"
+    depends_on:
+      - backend
+    networks:
+      - internal
+      - default
+
+networks:
+  internal:
+    internal: true

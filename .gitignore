@@ -1,0 +1,29 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+**/.env
+
+# Dependencies and build output
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# OS and editors
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Local AI tooling (Claude Code, Ruflo)
+.claude/
+.claude-flow/
+.swarm/
+.agents/
+.mcp.json
+CLAUDE.md
+ruvector.db
